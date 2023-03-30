@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+
+<html lang = "en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Assignment 1</title>
+</head>
+
+<body>
+    <div id = "app">
+        <h1>Welcome to the Weather forcast</h1>
+        Please enter a city to view data about
+        <br>
+        City: <input v-model="city">
+        <button v-on:click="GetForcast">Get forcast</button>
+        <br>
+        Longitude {{ long }}<br>
+        Latitude {{ lat }}<br>
+        Average Temperature: {{ tempRange }} <br>
+        Rain Likelyhood: {{ rain }} <br>
+        Polution Levels: {{ pol }} <br><br>
+        Next 5 Days (including this one):
+        {{ Table() }}
+        <div v-html="htmlString"></div>
+        <br>
+        <br>
+
+
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.5.13/dist/vue.js"></script>
+    <script>
+        var app = new Vue({
+            el: '#app',
+            data: {
+                city: "London",
+                tempRange: "unknown",
+                rain: "unknown",
+                fiveTemp: [0,0,0,0,0],
+                fiveWind: [0,0,0,0,0],
+                fiveRain: [0,0,0,0,0],
+                long: 0,
+                lat: 0,
+                //coord: {0, 0},
+                pol: "unknown",
+                htmlString: "blank"
+            },
+            methods: {
+                GetForcast: getForcast,
+                Table: getTable
+            },
+            mounted()
+            {
+                this.GetForcast()
+            }
+        })
+        function getForcast()
+        {
+            console.log("getForcast called")
+            let prom = fetch("weather/"+this.city)
+
+            
+            //console.log("Result: "+ JSON.parse(prom))
+            prom.then (response => response.json())
+                .then ( data => 
+                {
+
+                    this.lat = data.coord.lat
+                    this.long = data.coord.lon
+
+
+                    prom = fetch("weekly/"+this.lat+"/"+this.long)
+                    prom.then (response => response.json())
+                        .then ( data => 
+                        {
+                            console.log("weekly called")
+                            //console.log(JSON.stringify(data, null, 2))
+                            //console.log(JSON.stringify(data.list[0], null, 2))
+                            //console.log(JSON.stringify(data.daily, null, 2))
+                            this.rain = "Fairly Unlikely"
+                            let avgTemp = 0
+                            for (var i = 0; i< 5; i++)
+                            {
+                                let day = data.daily[i]
+                                if(day.weather[0].main == "Rain")
+                                {
+                                    this.rain = "Fairly Likely"
+                                }
+                                avgTemp = avgTemp + (day.temp.min + day.temp.max)/2
+                                this.fiveTemp[i] = ((day.temp.min + day.temp.max)/2).toFixed(2)
+                                this.fiveWind[i] = day.wind_speed
+                                if(day.rain != undefined)
+                                {
+                                    this.fiveRain[i] = day.rain
+                                }
+                                else 
+                                    this.fiveRain[i] = 0
+                            }
+                            avgTemp = avgTemp/5
+
+                            //console.log(avgTemp)
+                            if(avgTemp >= -10 && avgTemp < 10)
+                                this.tempRange = "Cold"
+                            else if (avgTemp >= 10 && avgTemp < 20)
+                                this.tempRange = "Warm"
+                            else if (avgTemp >= 20)
+                                this.tempRange = "Hot"
+                        })
+
+
+                    prom = fetch("pollution/"+this.lat+"/"+this.long)
+                    prom.then (response => response.json())
+                        .then ( data => 
+                        {
+                            console.log("pollution called")
+                            //console.log(JSON.stringify(data, null, 2))
+                            //console.log(JSON.stringify(data.list[0], null, 2))
+                            var output = "Low"
+                            //console.log(data.list.length)
+                            for (var i = 0; i< data.list.length; i++)
+                            //for (var key in data)
+                            {
+                                //i = key;
+                                //var print = JSON.stringify(data.list[i].components.pm2_5, null, 2)
+                                //console.log(data.list[i].components.pm2_5);
+                                if(data.list[i].components.pm2_5 > 10)
+                                {
+                                    output = "High"
+                                }
+                                
+                            }
+                            this.pol = output
+                        })
+                })
+            
+        }
+        function getTable()
+        {
+            var output = '<pre>' + 'Day     '
+            for(var i = 0; i< 5; i++)
+            {
+                output = output + '\t' + i
+            }
+            output = output + '\n' + 'Temp (°C)'
+            for(var i = 0; i< 5; i++)
+            {
+                output = output + '\t' + this.fiveTemp[i]
+            }
+            output = output + '\n' + 'Wind (m/s)'
+            for(var i = 0; i< 5; i++)
+            {
+                output = output + '\t' + this.fiveWind[i]
+            }
+            output = output + '\n' + 'Rain (mm)'
+            for(var i = 0; i< 5; i++)
+            {
+                output = output + '\t' + this.fiveRain[i]
+            }
+
+            output = output + '</pre>'
+
+            this.htmlString = output
+
+        }
+        
+    </script>
+
+</body>
+
+
+</html>
